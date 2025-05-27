@@ -329,7 +329,7 @@ func (p *Parser) parseIfFunction() (ASTNode, error) {
 // Helper function to check if operator is a comparison operator
 func isComparisonOp(op string) bool {
 	switch op {
-	case ">", "<", ">=", "<=", "==", "!=":
+	case ">", "<", ">=", "<=", "=", "!=":
 		return true
 	default:
 		return false
