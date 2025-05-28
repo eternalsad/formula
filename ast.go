@@ -125,7 +125,7 @@ func (n *ComparisonNode) Evaluate(ctx *Context) (float64, error) {
 
 	var result bool
 	switch n.Operator {
-	case "==":
+	case "=":
 		result = left == right
 	case "!=":
 		result = left != right
