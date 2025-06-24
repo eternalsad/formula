@@ -10,11 +10,11 @@ func main() {
 
 	// Test cases
 	testCases := []string{
-		//"A + B",
-		//"A + B * C",
-		//"(A + B) * C",
-		"IF(age = 18, salary * 1.2, salary)",
-		//"IF(A + B > 1000, A * 2, B * 3)",
+		"A + B",
+		"A + B * C",
+		"(A + B) * C",
+		"ЕСЛИ(age = 18 И 1 = 1) ТОГДА salary * 1.2 ИНАЧЕ salary",
+		"ЕСЛИ 1 -(B/A)/B=0 ИЛИ 1 -(B/A)/B >1 ТОГДА 1 ИНАЧЕ (1-(B-A)/B*(-1))",
 	}
 
 	fmt.Println("=== Тестирование парсера формул ===\n")

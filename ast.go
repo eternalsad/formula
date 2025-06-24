@@ -16,6 +16,8 @@ const (
 	NodeTypeConditional NodeType = "conditional"
 	NodeTypeComparison  NodeType = "comparison"
 	NodeTypeFunction    NodeType = "function"
+	NodeTypeLogical     NodeType = "logical"
+	NodeTypeUnary       NodeType = "unary"
 )
 
 // ASTNode базовый интерфейс для всех узлов AST
@@ -151,6 +153,59 @@ func (n *ComparisonNode) GetType() NodeType {
 	return NodeTypeComparison
 }
 
+// LogicalNode представляет логическую операцию (AND, OR)
+type LogicalNode struct {
+	Operator string  `json:"operator"`
+	Left     ASTNode `json:"left"`
+	Right    ASTNode `json:"right"`
+}
+
+func (n *LogicalNode) Evaluate(ctx *Context) (float64, error) {
+	left, err := n.Left.Evaluate(ctx)
+	if err != nil {
+		return 0, err
+	}
+
+	switch n.Operator {
+	case "OR":
+		// В логике OR: если левый операнд истинен (не равен 0), возвращаем 1
+		if left != 0 {
+			return 1, nil
+		}
+		// Иначе вычисляем правый операнд
+		right, err := n.Right.Evaluate(ctx)
+		if err != nil {
+			return 0, err
+		}
+		if right != 0 {
+			return 1, nil
+		}
+		return 0, nil
+
+	case "AND":
+		// В логике AND: если левый операнд ложен (равен 0), возвращаем 0
+		if left == 0 {
+			return 0, nil
+		}
+		// Иначе вычисляем правый операнд
+		right, err := n.Right.Evaluate(ctx)
+		if err != nil {
+			return 0, err
+		}
+		if right != 0 {
+			return 1, nil
+		}
+		return 0, nil
+
+	default:
+		return 0, fmt.Errorf("unknown logical operator: %s", n.Operator)
+	}
+}
+
+func (n *LogicalNode) GetType() NodeType {
+	return NodeTypeLogical
+}
+
 // ConditionalNode представляет условное выражение IF-THEN-ELSE
 type ConditionalNode struct {
 	Condition ASTNode `json:"condition"`
@@ -175,6 +230,32 @@ func (n *ConditionalNode) Evaluate(ctx *Context) (float64, error) {
 
 func (n *ConditionalNode) GetType() NodeType {
 	return NodeTypeConditional
+}
+
+// UnaryNode представляет унарную операцию
+type UnaryNode struct {
+	Operator string  `json:"operator"`
+	Operand  ASTNode `json:"operand"`
+}
+
+func (n *UnaryNode) Evaluate(ctx *Context) (float64, error) {
+	operand, err := n.Operand.Evaluate(ctx)
+	if err != nil {
+		return 0, err
+	}
+
+	switch n.Operator {
+	case "-":
+		return -operand, nil
+	case "+":
+		return operand, nil
+	default:
+		return 0, fmt.Errorf("unknown unary operator: %s", n.Operator)
+	}
+}
+
+func (n *UnaryNode) GetType() NodeType {
+	return NodeTypeUnary
 }
 
 // FunctionNode представляет вызов функции

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"unicode"
 )
 
 // Token types
@@ -18,6 +19,11 @@ const (
 	TokenComma
 	TokenFunction
 	TokenEOF
+	TokenThen
+	TokenIf
+	TokenElse
+	TokenOr
+	TokenAnd
 )
 
 // Token represents a token in the formula
@@ -31,29 +37,70 @@ type Token struct {
 type Lexer struct {
 	input string
 	pos   int
+	runes []rune
 }
 
 func NewLexer(input string) *Lexer {
+	// Don't remove ALL spaces - only trim and normalize
+	cleanInput := strings.TrimSpace(input)
+	// Replace multiple spaces with single space, then remove spaces around operators
+	cleanInput = normalizeSpaces(cleanInput)
 	return &Lexer{
-		input: strings.ReplaceAll(input, " ", ""), // Remove spaces
+		input: cleanInput,
 		pos:   0,
+		runes: []rune(cleanInput),
 	}
 }
 
+// normalizeSpaces removes spaces around operators but keeps spaces between words and numbers
+func normalizeSpaces(input string) string {
+	// Keep spaces that separate letters from numbers
+	result := make([]rune, 0, len(input))
+	runes := []rune(input)
+
+	for i, r := range runes {
+		if r == ' ' {
+			// Check if we should keep this space
+			if i > 0 && i < len(runes)-1 {
+				prev := runes[i-1]
+				next := runes[i+1]
+
+				// Keep space if it separates a letter from a number or vice versa
+				if (unicode.IsLetter(prev) && unicode.IsDigit(next)) ||
+					(unicode.IsDigit(prev) && unicode.IsLetter(next)) ||
+					(unicode.IsLetter(prev) && unicode.IsLetter(next)) {
+					result = append(result, r)
+					continue
+				}
+			}
+			// Skip spaces around operators
+			continue
+		}
+		result = append(result, r)
+	}
+
+	return string(result)
+}
+
 func (l *Lexer) NextToken() Token {
-	if l.pos >= len(l.input) {
+	// Skip whitespace
+	for l.pos < len(l.runes) && unicode.IsSpace(l.runes[l.pos]) {
+		l.pos++
+	}
+
+	if l.pos >= len(l.runes) {
 		return Token{TokenEOF, "", l.pos}
 	}
 
-	char := l.input[l.pos]
+	char := l.runes[l.pos]
 
 	// Numbers (including decimals)
-	if isDigit(char) {
+	if unicode.IsDigit(char) {
 		return l.readNumber()
 	}
 
-	// Variables and functions
-	if isLetter(char) {
+	// Variables, functions, and keywords
+	if unicode.IsLetter(char) {
 		return l.readIdentifier()
 	}
 
@@ -79,22 +126,57 @@ func (l *Lexer) NextToken() Token {
 
 func (l *Lexer) readNumber() Token {
 	start := l.pos
-	for l.pos < len(l.input) && (isDigit(l.input[l.pos]) || l.input[l.pos] == '.') {
+	for l.pos < len(l.runes) && (unicode.IsDigit(l.runes[l.pos]) || l.runes[l.pos] == '.') {
 		l.pos++
 	}
-	return Token{TokenNumber, l.input[start:l.pos], start}
+	return Token{TokenNumber, string(l.runes[start:l.pos]), start}
 }
 
 func (l *Lexer) readIdentifier() Token {
 	start := l.pos
-	for l.pos < len(l.input) && (isLetter(l.input[l.pos]) || isDigit(l.input[l.pos]) || l.input[l.pos] == '_') {
+	// Read only letters and underscores for identifiers - no digits
+	for l.pos < len(l.runes) && (unicode.IsLetter(l.runes[l.pos]) || l.runes[l.pos] == '_') {
 		l.pos++
 	}
 
-	value := l.input[start:l.pos]
+	value := string(l.runes[start:l.pos])
+	upperValue := strings.ToUpper(value)
+
+	// Check for Russian keywords
+	switch upperValue {
+	case "ЕСЛИ":
+		return Token{TokenIf, value, start}
+	case "ТОГДА":
+		return Token{TokenThen, value, start}
+	case "ИНАЧЕ":
+		return Token{TokenElse, value, start}
+	case "ИЛИ":
+		return Token{TokenOr, value, start}
+	case "И":
+		return Token{TokenAnd, value, start}
+	}
+
+	// Check for English keywords
+	switch upperValue {
+	case "IF":
+		return Token{TokenIf, value, start}
+	case "THEN":
+		return Token{TokenThen, value, start}
+	case "ELSE":
+		return Token{TokenElse, value, start}
+	case "OR":
+		return Token{TokenOr, value, start}
+	case "AND":
+		return Token{TokenAnd, value, start}
+	}
 
 	// Check if it's a function (followed by parenthesis)
-	if l.pos < len(l.input) && l.input[l.pos] == '(' {
+	// Skip whitespace to check for opening parenthesis
+	tempPos := l.pos
+	for tempPos < len(l.runes) && unicode.IsSpace(l.runes[tempPos]) {
+		tempPos++
+	}
+	if tempPos < len(l.runes) && l.runes[tempPos] == '(' {
 		return Token{TokenFunction, value, start}
 	}
 
@@ -105,8 +187,8 @@ func (l *Lexer) readOperator() Token {
 	start := l.pos
 
 	// Handle multi-character operators
-	if l.pos+1 < len(l.input) {
-		twoChar := l.input[l.pos : l.pos+2]
+	if l.pos+1 < len(l.runes) {
+		twoChar := string(l.runes[l.pos : l.pos+2])
 		switch twoChar {
 		case ">=", "<=", "==", "!=":
 			l.pos += 2
@@ -115,16 +197,10 @@ func (l *Lexer) readOperator() Token {
 	}
 
 	l.pos++
-	return Token{TokenOperator, string(l.input[start]), start}
+	return Token{TokenOperator, string(l.runes[start]), start}
 }
 
-func isDigit(ch byte) bool {
-	return ch >= '0' && ch <= '9'
-}
-
-func isLetter(ch byte) bool {
-	return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z')
-}
+// Removed isDigit and isLetter functions - using unicode package instead
 
 // Parser converts tokens to AST
 type Parser struct {
@@ -149,7 +225,101 @@ func (p *Parser) Parse() (ASTNode, error) {
 
 // parseExpression handles the top-level expression
 func (p *Parser) parseExpression() (ASTNode, error) {
-	return p.parseComparison()
+	// Check for IF statement at the beginning
+	if p.current.Type == TokenIf {
+		return p.parseIfStatement()
+	}
+	return p.parseLogicalOr()
+}
+
+// parseIfStatement handles ЕСЛИ...ТОГДА...ИНАЧЕ construction
+func (p *Parser) parseIfStatement() (ASTNode, error) {
+	if p.current.Type != TokenIf {
+		return nil, fmt.Errorf("expected IF/ЕСЛИ")
+	}
+	p.nextToken() // consume IF/ЕСЛИ
+
+	// Parse condition
+	condition, err := p.parseLogicalOr()
+	if err != nil {
+		return nil, fmt.Errorf("error parsing IF condition: %v", err)
+	}
+
+	if p.current.Type != TokenThen {
+		return nil, fmt.Errorf("expected THEN/ТОГДА after IF condition")
+	}
+	p.nextToken() // consume THEN/ТОГДА
+
+	// Parse then branch
+	thenNode, err := p.parseLogicalOr()
+	if err != nil {
+		return nil, fmt.Errorf("error parsing IF then branch: %v", err)
+	}
+
+	var elseNode ASTNode
+	if p.current.Type == TokenElse {
+		p.nextToken() // consume ELSE/ИНАЧЕ
+		elseNode, err = p.parseLogicalOr()
+		if err != nil {
+			return nil, fmt.Errorf("error parsing IF else branch: %v", err)
+		}
+	}
+
+	return &ConditionalNode{
+		Condition: condition,
+		Then:      thenNode,
+		Else:      elseNode,
+	}, nil
+}
+
+// parseLogicalOr handles OR/ИЛИ operators
+func (p *Parser) parseLogicalOr() (ASTNode, error) {
+	left, err := p.parseLogicalAnd()
+	if err != nil {
+		return nil, err
+	}
+
+	for p.current.Type == TokenOr {
+		p.nextToken() // consume OR/ИЛИ
+
+		right, err := p.parseLogicalAnd()
+		if err != nil {
+			return nil, err
+		}
+
+		left = &LogicalNode{
+			Operator: "OR",
+			Left:     left,
+			Right:    right,
+		}
+	}
+
+	return left, nil
+}
+
+// parseLogicalAnd handles AND/И operators
+func (p *Parser) parseLogicalAnd() (ASTNode, error) {
+	left, err := p.parseComparison()
+	if err != nil {
+		return nil, err
+	}
+
+	for p.current.Type == TokenAnd {
+		p.nextToken() // consume AND/И
+
+		right, err := p.parseComparison()
+		if err != nil {
+			return nil, err
+		}
+
+		left = &LogicalNode{
+			Operator: "AND",
+			Left:     left,
+			Right:    right,
+		}
+	}
+
+	return left, nil
 }
 
 // parseComparison handles comparison operators (>, <, ==, etc.)
@@ -230,7 +400,7 @@ func (p *Parser) parseMulDiv() (ASTNode, error) {
 	return left, nil
 }
 
-// parseFactor handles numbers, variables, functions, and parenthesized expressions
+// parseFactor handles numbers, variables, functions, unary operators, and parenthesized expressions
 func (p *Parser) parseFactor() (ASTNode, error) {
 	switch p.current.Type {
 	case TokenNumber:
@@ -248,6 +418,24 @@ func (p *Parser) parseFactor() (ASTNode, error) {
 
 	case TokenFunction:
 		return p.parseFunction()
+
+	case TokenOperator:
+		// Handle unary operators (+ and -)
+		if p.current.Value == "+" || p.current.Value == "-" {
+			op := p.current.Value
+			p.nextToken()
+
+			operand, err := p.parseFactor()
+			if err != nil {
+				return nil, err
+			}
+
+			return &UnaryNode{
+				Operator: op,
+				Operand:  operand,
+			}, nil
+		}
+		return nil, fmt.Errorf("unexpected operator: %s", p.current.Value)
 
 	case TokenParenOpen:
 		p.nextToken() // consume '('
@@ -279,7 +467,7 @@ func (p *Parser) parseFunction() (ASTNode, error) {
 
 	// Handle specific functions
 	switch strings.ToUpper(funcName) {
-	case "IF":
+	case "IF", "ЕСЛИ":
 		return p.parseIfFunction()
 	default:
 		return nil, fmt.Errorf("unknown function: %s", funcName)
@@ -289,7 +477,7 @@ func (p *Parser) parseFunction() (ASTNode, error) {
 // parseIfFunction handles IF(condition, then, else) function
 func (p *Parser) parseIfFunction() (ASTNode, error) {
 	// Parse condition
-	condition, err := p.parseExpression()
+	condition, err := p.parseLogicalOr()
 	if err != nil {
 		return nil, fmt.Errorf("error parsing IF condition: %v", err)
 	}
@@ -300,7 +488,7 @@ func (p *Parser) parseIfFunction() (ASTNode, error) {
 	p.nextToken() // consume ','
 
 	// Parse then branch
-	thenNode, err := p.parseExpression()
+	thenNode, err := p.parseLogicalOr()
 	if err != nil {
 		return nil, fmt.Errorf("error parsing IF then branch: %v", err)
 	}
@@ -308,7 +496,7 @@ func (p *Parser) parseIfFunction() (ASTNode, error) {
 	var elseNode ASTNode
 	if p.current.Type == TokenComma {
 		p.nextToken() // consume ','
-		elseNode, err = p.parseExpression()
+		elseNode, err = p.parseLogicalOr()
 		if err != nil {
 			return nil, fmt.Errorf("error parsing IF else branch: %v", err)
 		}
