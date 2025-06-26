@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"github.com/eternalsad/formula"
+	"math"
+	"unicode"
 )
 
 func main() {
@@ -10,11 +12,13 @@ func main() {
 
 	// Test cases
 	testCases := []string{
-		"A + B",
-		"A + B * C",
-		"(A + B) * C",
-		"ЕСЛИ(age = 18 И 1 = 1) ТОГДА salary * 1.2 ИНАЧЕ salary",
-		"ЕСЛИ 1 -(B/A)/B=0 ИЛИ 1 -(B/A)/B >1 ТОГДА 1 ИНАЧЕ (1-(B-A)/B*(-1))",
+		"A/B-1",
+		"asdsadsadsdasd",
+		//"A + B",
+		//"A + B * C",
+		//"(A + B) * C",
+		//"ЕСЛИ(age = 18 И 1 = 1) ТОГДА salary * 1.2 ИНАЧЕ salary",
+		//"ЕСЛИ 1 -(B/A)/B=0 ИЛИ 1 -(B/A)/B >1 ТОГДА 1 ИНАЧЕ (1-(B-A)/B*(-1))",
 	}
 
 	fmt.Println("=== Тестирование парсера формул ===\n")
@@ -22,7 +26,7 @@ func main() {
 	for i, testCase := range testCases {
 		fmt.Printf("Тест %d: %s\n", i+1, testCase)
 
-		ast, err := parser.ParseString(testCase)
+		ast, err := parser.ParseString(toUpperLatinOnlyUnicode(testCase))
 		if err != nil {
 			fmt.Printf("❌ Ошибка: %v\n", err)
 		} else {
@@ -40,8 +44,8 @@ func main() {
 			// затем постепенно из json достать в репоизтории значения нужные по айди
 			// и вот сюда вставить в виде переменных
 			variables := map[string]float64{
-				"A":      10,
-				"B":      5,
+				"A":      69456935.000000,
+				"B":      69456939.000000,
 				"C":      2,
 				"age":    18,
 				"salary": 50000,
@@ -51,6 +55,8 @@ func main() {
 				Variables: variables,
 				Functions: nil,
 			})
+
+			result = roundFloat(result, 2)
 			if evalErr != nil {
 				fmt.Printf("⚠️  Ошибка вычисления: %v\n", evalErr)
 			} else {
@@ -97,4 +103,24 @@ func demonstrateTokenization(input string) {
 
 		fmt.Printf("  %s: '%s' (позиция %d)\n", tokenTypeName, token.Value, token.Pos)
 	}
+}
+
+func roundFloat(val float64, precision uint) float64 {
+	ratio := math.Pow(10, float64(precision))
+	return math.Round(val*ratio) / ratio
+}
+func toUpperLatinOnlyUnicode(s string) string {
+	runes := []rune(s)
+	result := make([]rune, len(runes))
+
+	for i, r := range runes {
+		// Проверяем, является ли символ латинской буквой нижнего регистра
+		if r >= 'a' && r <= 'z' && unicode.In(r, unicode.Latin) {
+			result[i] = unicode.ToUpper(r)
+		} else {
+			result[i] = r // Оставляем без изменений
+		}
+	}
+
+	return string(result)
 }
