@@ -16,9 +16,9 @@ type ValidationError struct {
 
 func (e *ValidationError) Error() string {
 	if e.Position >= 0 {
-		return fmt.Sprintf("ошибка валидации на позиции %d: %s", e.Position, e.Message)
+		return fmt.Sprintf("validation error at position %d: %s", e.Position, e.Message)
 	}
-	return fmt.Sprintf("ошибка валидации: %s", e.Message)
+	return fmt.Sprintf("validation error: %s", e.Message)
 }
 
 // ValidationResult содержит результат валидации
@@ -43,11 +43,12 @@ func NewFormulaValidator() *FormulaValidator {
 			'(': true, ')': true, ',': true, '.': true,
 		},
 		keywords: map[string]bool{
-			"ЕСЛИ": true, "IF": true,
-			"ТОГДА": true, "THEN": true,
-			"ИНАЧЕ": true, "ELSE": true,
-			"ИЛИ": true, "OR": true,
-			"И": true, "AND": true,
+			// Русские ключевые слова
+			"ЕСЛИ": true, "ИЛИ": true, "И": true,
+			"ТОГДА": true, "ИНАЧЕ": true,
+			// Английские ключевые слова
+			"IF": true, "THEN": true, "ELSE": true,
+			"OR": true, "AND": true,
 		},
 	}
 }
@@ -68,6 +69,12 @@ func (v *FormulaValidator) ValidateFormula(formula string) ValidationResult {
 
 	// Проверка недопустимых символов
 	if errors := v.validateCharacters(formula); len(errors) > 0 {
+		result.Errors = append(result.Errors, errors...)
+		result.IsValid = false
+	}
+
+	// Проверка использования кириллицы
+	if errors := v.validateCyrillicUsage(formula); len(errors) > 0 {
 		result.Errors = append(result.Errors, errors...)
 		result.IsValid = false
 	}
@@ -145,11 +152,6 @@ func (v *FormulaValidator) isValidCharacter(r rune) bool {
 		return true
 	}
 
-	// Буквы (латинские и кириллические)
-	if unicode.IsLetter(r) {
-		return true
-	}
-
 	// Пробелы
 	if unicode.IsSpace(r) {
 		return true
@@ -165,7 +167,72 @@ func (v *FormulaValidator) isValidCharacter(r rune) bool {
 		return true
 	}
 
+	// Только латинские буквы
+	if r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' {
+		return true
+	}
+
+	// Кириллица разрешена только в составе ключевых слов
+	// Проверяем это отдельно в validateCyrillicUsage
+	if unicode.In(r, unicode.Cyrillic) {
+		return true // Временно разрешаем, проверим контекст позже
+	}
+
 	return false
+}
+
+// validateCyrillicUsage проверяет использование кириллицы
+func (v *FormulaValidator) validateCyrillicUsage(formula string) []ValidationError {
+	var errors []ValidationError
+
+	// Находим все кириллические слова
+	cyrillicWords := v.extractCyrillicWords(formula)
+
+	for word, positions := range cyrillicWords {
+		upperWord := strings.ToUpper(word)
+		if !v.keywords[upperWord] {
+			// Кириллическое слово не является ключевым словом
+			for _, pos := range positions {
+				errors = append(errors, ValidationError{
+					Message:  fmt.Sprintf("кириллическое слово '%s' не является допустимым ключевым словом. Разрешены только: ЕСЛИ, ИЛИ, И, ТОГДА, ИНАЧЕ", word),
+					Position: pos,
+					Code:     "INVALID_CYRILLIC_WORD",
+				})
+			}
+		}
+	}
+
+	return errors
+}
+
+// extractCyrillicWords извлекает все кириллические слова и их позиции
+func (v *FormulaValidator) extractCyrillicWords(formula string) map[string][]int {
+	words := make(map[string][]int)
+	runes := []rune(formula)
+
+	for i := 0; i < len(runes); {
+		if unicode.In(runes[i], unicode.Cyrillic) {
+			// Начало кириллического слова
+			start := i
+			wordRunes := []rune{}
+
+			// Читаем все кириллические символы подряд
+			for i < len(runes) && (unicode.In(runes[i], unicode.Cyrillic) || runes[i] == '_') {
+				wordRunes = append(wordRunes, runes[i])
+				i++
+			}
+
+			word := string(wordRunes)
+			if _, exists := words[word]; !exists {
+				words[word] = []int{}
+			}
+			words[word] = append(words[word], start)
+		} else {
+			i++
+		}
+	}
+
+	return words
 }
 
 // validateParentheses проверяет правильность расстановки скобок
