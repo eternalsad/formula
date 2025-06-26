@@ -9,6 +9,10 @@ import (
 // NodeType определяет тип узла AST
 type NodeType string
 
+var (
+	ErrNotFound = errors.New("entity not found")
+)
+
 const (
 	NodeTypeLiteral     NodeType = "literal"
 	NodeTypeVariable    NodeType = "variable"
@@ -54,7 +58,7 @@ func (n *VariableNode) Evaluate(ctx *Context) (float64, error) {
 	if value, exists := ctx.Variables[n.Name]; exists {
 		return value, nil
 	}
-	return 0, fmt.Errorf("variable '%s' not found", n.Name)
+	return 0, fmt.Errorf("variable '%s' not found %w", n.Name, ErrNotFound)
 }
 
 func (n *VariableNode) GetType() NodeType {
