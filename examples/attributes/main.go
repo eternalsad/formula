@@ -12,7 +12,7 @@ func main() {
 
 	// Test cases
 	testCases := []string{
-		"A/B-1",
+		"A/DC-1",
 		"asdsadsadsdasd",
 		//"A + B",
 		//"A + B * C",
