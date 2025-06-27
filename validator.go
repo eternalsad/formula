@@ -16,9 +16,9 @@ type ValidationError struct {
 
 func (e *ValidationError) Error() string {
 	if e.Position >= 0 {
-		return fmt.Sprintf("validation error at position %d: %s", e.Position, e.Message)
+		return fmt.Sprintf("ошибка валидации на позиции %d: %s", e.Position, e.Message)
 	}
-	return fmt.Sprintf("validation error: %s", e.Message)
+	return fmt.Sprintf("ошибка валидации: %s", e.Message)
 }
 
 // ValidationResult содержит результат валидации
