@@ -170,20 +170,31 @@ func (n *LogicalNode) Evaluate(ctx *Context) (float64, error) {
 		return 0, err
 	}
 
+	if left != 0 && left != 1 {
+		return 0, fmt.Errorf("logical operands must be either 1 or 0")
+	}
+
+	right, err := n.Right.Evaluate(ctx)
+	if err != nil {
+		return 0, err
+	}
+
+	if right != 0 && right != 1 {
+		return 0, fmt.Errorf("logical operands must be either 1 or 0")
+	}
+
 	switch n.Operator {
 	case "OR":
 		// В логике OR: если левый операнд истинен (не равен 0), возвращаем 1
 		if left != 0 {
 			return 1, nil
 		}
+
 		// Иначе вычисляем правый операнд
-		right, err := n.Right.Evaluate(ctx)
-		if err != nil {
-			return 0, err
-		}
 		if right != 0 {
 			return 1, nil
 		}
+
 		return 0, nil
 
 	case "AND":
@@ -191,14 +202,11 @@ func (n *LogicalNode) Evaluate(ctx *Context) (float64, error) {
 		if left == 0 {
 			return 0, nil
 		}
-		// Иначе вычисляем правый операнд
-		right, err := n.Right.Evaluate(ctx)
-		if err != nil {
-			return 0, err
-		}
+
 		if right != 0 {
 			return 1, nil
 		}
+
 		return 0, nil
 
 	default:
