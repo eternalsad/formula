@@ -13,18 +13,26 @@ func main() {
 	// Test cases
 	testCases := []string{
 		"A/DC-1",
-		"asdsadsadsdasd",
-		//"A + B",
-		//"A + B * C",
-		//"(A + B) * C",
-		//"ЕСЛИ(age = 18 И 1 = 1) ТОГДА salary * 1.2 ИНАЧЕ salary",
-		//"ЕСЛИ 1 -(B/A)/B=0 ИЛИ 1 -(B/A)/B >1 ТОГДА 1 ИНАЧЕ (1-(B-A)/B*(-1))",
+		"A asdsadasd",
+		"A + B",
+		"A + B * C",
+		"(A + B) * C",
+		"ЕСЛИ(age = 18 И 1 = 1) ТОГДА salary * 1.2 ИНАЧЕ salary",
+		"ЕСЛИ 1 -(B/A)/B=0 ИЛИ 1 -(B/A)/B >1 ТОГДА 1 ИНАЧЕ (1-(B-A)/B*(-1))",
 	}
 
 	fmt.Println("=== Тестирование парсера формул ===\n")
 
 	for i, testCase := range testCases {
 		fmt.Printf("Тест %d: %s\n", i+1, testCase)
+
+		validator := formula.NewFormulaValidator()
+
+		res := validator.ValidateFormula(testCase)
+		if res.Errors != nil {
+			fmt.Printf("validate formula err: %v\n", res.Errors)
+			return
+		}
 
 		ast, err := parser.ParseString(toUpperLatinOnlyUnicode(testCase))
 		if err != nil {

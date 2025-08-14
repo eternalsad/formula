@@ -11,14 +11,14 @@ func main() {
 	// Test cases
 	testCases := []string{
 		"A + B И 123",
-		//"A + B * C",
-		//"A + B / C - D",
-		//"(A + B) * C",
-		//"IF(age > 18, salary * 1.2, salary)",
-		//"IF(A + B > 1000, A * 2, B * 3)",
-		//"A >= 100",
-		//"price * (1 + tax)",
-		//"IF(score >= 90, 5, IF(score >= 80, 4, 3))",
+		"A + B * C",
+		"A + B / C - D",
+		"(A + B) * C",
+		"IF(age > 18, salary * 1.2, salary)",
+		"IF(A + B > 1000, A * 2, B * 3)",
+		"A >= 100",
+		"price * (1 + tax)",
+		"IF(score >= 90, 5, IF(score >= 80, 4, 3))",
 	}
 
 	fmt.Println("=== Тестирование парсера формул ===\n")

@@ -303,6 +303,9 @@ func (v *FormulaValidator) validateSyntax(formula string) *ValidationError {
 	lexer := NewLexer(formula)
 
 	// Пытаемся токенизировать всю формулу
+
+	variableInRowCount := 0
+
 	for {
 		token := lexer.NextToken()
 		if token.Type == TokenEOF {
@@ -317,6 +320,21 @@ func (v *FormulaValidator) validateSyntax(formula string) *ValidationError {
 				Code:     "UNEXPECTED_TOKEN",
 			}
 		}
+
+		if token.Type == TokenVariable {
+			variableInRowCount++
+		} else {
+			variableInRowCount = 0
+		}
+
+		if variableInRowCount > 1 {
+			return &ValidationError{
+				Message:  "подряд две переменные без оператора",
+				Position: token.Pos,
+				Code:     "UNEXPECTED_TOKEN",
+			}
+		}
+
 	}
 
 	// Пытаемся распарсить формулу
